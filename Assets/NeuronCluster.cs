@@ -7,7 +7,6 @@ public class NeuronCluster {
     public const int ACTIVATION_MAGNITUDE_CAP = 16;
     public const int ACTIVATION_MAGNITUDE_THRESH = 8;
     public const int SUM_THRESHOLD = 4;
-    // FUCK ALL THIS BIT PACKING BULLSHIT
     int[] activations;
     int[] activationTotals;
     int[] nextTimestepActivations;
