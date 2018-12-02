@@ -155,15 +155,14 @@ public class NeuronCluster {
         // can clear out next timestep activations, but no need
     }
 
-    public List<int> ToIntList() {
-        List<int> result = new List<int>();
+    public void ToIntList(List<int> result) {
         result.Add(numNeurons);
         result.Add(numExposed);
-        for (int i = 0; i < externalInputs.Length; i++) {
+        for (int i = 0; i < numExposed; i++) {
             result.Add(externalInputs[i]);
         }
-        for (int i = 0; i < externalOutputs.Length; i++) {
-            result.Add(externalInputs[i]);
+        for (int i = 0; i < numExposed; i++) {
+            result.Add(externalOutputs[i]);
         }
         for (int i = 0; i < numNeurons; i++) {
             result.Add(activations[i]);
@@ -173,10 +172,32 @@ public class NeuronCluster {
                 result.Add(connections[i][j]);
             }
         }
-        return result;
     }
 
-    public void FromIntList(List<int> list) {
-        // TODO
+    public static NeuronCluster FromIntList(IEnumerator<int> list) {
+        int numNeurons = list.Current;
+        list.MoveNext();
+        int numExposed = list.Current;
+        list.MoveNext();
+        NeuronCluster result = new NeuronCluster(numNeurons, numExposed);
+        for (int i = 0; i < numExposed; i++) {
+            result.externalInputs[i] = list.Current;
+            list.MoveNext();
+        }
+        for (int i = 0; i < numExposed; i++) {
+            result.externalOutputs[i] = list.Current;
+            list.MoveNext();
+        }
+        for (int i = 0; i < numExposed; i++) {
+            result.activations[i] = list.Current;
+            list.MoveNext();
+        }
+        for (int i = 0; i < numNeurons; i++) {
+            for (int j = 0; j < numNeurons; j++) {
+                result.connections[i][j] = list.Current;
+                list.MoveNext();
+            }
+        }
+        return result;
     }
 }

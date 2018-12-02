@@ -3,15 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class NNHolder : MonoBehaviour {
-    [HideInInspector]
-    public int[] inputVector;
-    [HideInInspector]
-    public int[] outputVector;
-    [HideInInspector]
-    public NeuronCluster[] subNets;
-    [HideInInspector]
-    public NNConnection[] connections;
-    
     public struct NNConnection {
         // idx -1 is the vectors
         // this is bidirectional
@@ -19,6 +10,26 @@ public class NNHolder : MonoBehaviour {
         public int srcIdx;
         public int destNet;
         public int destIdx;
+
+        public void ToIntList(List<int> result) {
+            result.Add(srcNet);
+            result.Add(srcIdx);
+            result.Add(destNet);
+            result.Add(destIdx);
+        }
+
+        public static NNConnection FromIntList(IEnumerator<int> list) {
+            NNConnection result = new NNConnection();
+            result.srcNet = list.Current;
+            list.MoveNext();
+            result.srcIdx = list.Current;
+            list.MoveNext();
+            result.destNet = list.Current;
+            list.MoveNext();
+            result.destIdx = list.Current;
+            list.MoveNext();
+            return result;
+        }
     }
 
     public int subnetNeurons;
@@ -28,9 +39,22 @@ public class NNHolder : MonoBehaviour {
     public int inputOutputConnNum; 
     public int EmotionState { get; set; }
 
+    [HideInInspector]
+    public int[] inputVector;
+    [HideInInspector]
+    public int[] outputVector;
+    [HideInInspector]
+    public NeuronCluster[] subNets;
+    [HideInInspector]
+    public NNConnection[] connections;
+
     public int InputOutputConnTotal { get { return (int)Mathf.Pow(2, layers - 1) * inputOutputConnNum; } }
 
     private void Start() {
+        Init();
+    }
+
+    private void Init() {
         inputVector = new int[InputOutputConnTotal];
         outputVector = new int[InputOutputConnTotal];
         subNets = new NeuronCluster[(int)Mathf.Pow(2, layers) - 1];
@@ -123,5 +147,48 @@ public class NNHolder : MonoBehaviour {
         }
 
         // then let the world simulate for a sec
+    }
+
+
+    public void ToIntList(List<int> result) {
+        result.Add(subnetNeurons);
+        result.Add(layers);
+        result.Add(baseConnNum);
+        result.Add(inputOutputConnNum);
+        result.Add(EmotionState);
+        result.Add(subNets.Length);
+        for (int i = 0; i < subNets.Length; i++) {
+            subNets[i].ToIntList(result);
+        }
+        result.Add(connections.Length);
+        for (int i = 0; i < connections.Length; i++) {
+            connections[i].ToIntList(result);
+        }
+    }
+
+    public void FromIntList(IEnumerator<int> list) {
+        subnetNeurons = list.Current;
+        list.MoveNext();
+        layers = list.Current;
+        list.MoveNext();
+        baseConnNum = list.Current;
+        list.MoveNext();
+        inputOutputConnNum = list.Current;
+        list.MoveNext();
+        EmotionState = list.Current;
+        list.MoveNext();
+
+        Init();
+
+        subNets = new NeuronCluster[list.Current];
+        list.MoveNext();
+        for (int i = 0; i < subNets.Length; i++) {
+            subNets[i] = NeuronCluster.FromIntList(list);
+        }
+        connections = new NNConnection[list.Current];
+        list.MoveNext();
+        for (int i = 0; i < connections.Length; i++) {
+            connections[i] = NNConnection.FromIntList(list);
+        }
     }
 }
