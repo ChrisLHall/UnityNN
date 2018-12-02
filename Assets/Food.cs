@@ -16,7 +16,7 @@ public class Food : MonoBehaviour {
     public bool CanPickup { get { return Time.time - spawnedTime > .5f; } }
     
     public void Respawn () {
-        transform.position = startPos;
+        transform.position = new Vector3(-2 + Random.value * 4, startPos.y, -2 + Random.value * 4);
         rb.velocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
         spawnedTime = Time.time;

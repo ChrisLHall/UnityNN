@@ -113,6 +113,8 @@ public class NNHolder : MonoBehaviour {
             }
         }
         connections = listConnections.ToArray();
+
+        DebugBrainViewer.inst.SetupTexture(DebugTextureWidthPixels, DebugTextureHeightPixels);
     }
 
     public void DoTimestep() {
@@ -154,6 +156,8 @@ public class NNHolder : MonoBehaviour {
         }
 
         // then let the world simulate for a sec
+        // TODO maybe toggle this
+        PrintToTexture(DebugBrainViewer.inst.Texture);
     }
 
     public void SetInput(int idx, int value) {
@@ -177,6 +181,25 @@ public class NNHolder : MonoBehaviour {
     }
     public void SetBadEmotion() {
         EmotionState = Mathf.Clamp(EmotionState - EMOTION_MAGNITUDE_CAP, -EMOTION_MAGNITUDE_CAP, EMOTION_MAGNITUDE_CAP);
+    }
+
+    public int DebugTextureWidthTiles { get { return Mathf.CeilToInt(Mathf.Pow(2, layers / 2f)); } }
+    public int DebugTextureWidthPixels { get { return DebugTextureWidthTiles * subnetNeurons; } }
+    public int DebugTextureHeightPixels {  get { return DebugTextureWidthTiles * (subnetNeurons + 3)
+            + 2 * Mathf.CeilToInt((float)InputOutputConnTotal / DebugTextureWidthPixels); } }
+
+    public void PrintToTexture(Texture2D tex) {
+        for (int i = 0; i < subNets.Length; i++) {
+            int tileX = i % DebugTextureWidthTiles;
+            int tileY = Mathf.FloorToInt((float)i / DebugTextureWidthTiles);
+            subNets[i].PrintToTexture(tex, tileX * subnetNeurons, tileY * (subnetNeurons + 3));
+        }
+        int rowsForIO = Mathf.CeilToInt((float)InputOutputConnTotal / DebugTextureWidthPixels);
+        for (int i = 0; i < inputVector.Length; i++) {
+            tex.SetPixel(i % DebugTextureWidthPixels, DebugTextureWidthPixels + Mathf.FloorToInt((float)i / DebugTextureWidthPixels), Color.magenta / 16f * inputVector[i]);
+            tex.SetPixel(i % DebugTextureWidthPixels, rowsForIO + DebugTextureWidthPixels + Mathf.FloorToInt((float)i / DebugTextureWidthPixels), Color.blue / 16f * outputVector[i]);
+        }
+        tex.Apply();
     }
 
     public void ToIntList(List<int> result) {

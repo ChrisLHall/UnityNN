@@ -8,7 +8,7 @@ public class NeuronCluster {
     public const int CONNECTION_MAGNITUDE_THRESH = 4;
     public const int ACTIVATION_MAGNITUDE_CAP = 16;
     public const int ACTIVATION_MAGNITUDE_THRESH = 8;
-    public const int SUM_THRESHOLD = 4;
+    public const int SUM_THRESHOLD = 1;
     int[] externalInputs;
     int[] externalOutputs;
     int[] activations;
@@ -28,6 +28,10 @@ public class NeuronCluster {
         for (int i = 0; i < connections.Length; i++) {
             connections[i] = new int[numNeurons];
             for (int j = 0; j < numNeurons; j++) {
+                if (i == j) {
+                    connections[i][j] = 0;
+                    continue;
+                }
                 // fully randomize connections
                 connections[i][j] = -CONNECTION_MAGNITUDE_CAP + Mathf.FloorToInt(Random.value * (2 * CONNECTION_MAGNITUDE_CAP + 1));
             }
@@ -102,6 +106,7 @@ public class NeuronCluster {
     void CommitActivationSums() {
         for (int idx = 0; idx < numNeurons; idx++) {
             int add = sumTotals[idx] > SUM_THRESHOLD ? 1 : -1;
+            //Debug.Log(add);
             nextTimestepActivations[idx] = Mathf.Clamp(nextTimestepActivations[idx] + add, 0, ACTIVATION_MAGNITUDE_CAP);
         }
     }
@@ -133,6 +138,10 @@ public class NeuronCluster {
         for (var src = 0; src < numNeurons; src++) {
             bool srcActive = activations[src] > ACTIVATION_MAGNITUDE_THRESH;
             for (var dest = 0; dest < numNeurons; dest++) {
+                if (src == dest) {
+                    connections[src][dest] = 0;
+                    continue;
+                }
                 // skip learning for external ones? maybe keep their weights always 0.
                 // its still a bit unclear how those work. There need to be separate input and output ones..?
                 // TODO how to apply randomization? randomize weights, or sometimes have random outputs?
@@ -156,9 +165,16 @@ public class NeuronCluster {
     }
 
     public void PrintToTexture(Texture2D tex, int startX, int startY) {
+        for (int i = 0; i < numExposed; i++) {
+            tex.SetPixel(startX + i, startY + 0, Color.green / 16f * externalInputs[i]);
+            tex.SetPixel(startX + i, startY + 1, Color.yellow / 16f * externalOutputs[i]);
+        }
         for (int i = 0; i < numNeurons; i++) {
-            if (i < numExposed) {
-
+            tex.SetPixel(startX + i, startY + 2, Color.cyan / 16f * activations[i]);
+        }
+        for (int i = 0; i < numNeurons; i++) {
+            for (int j = 0; j < numNeurons; j++) {
+                tex.SetPixel(startX + i, startY + 3 + j, Color.red / 16f * connections[i][j]);
             }
         }
     }
