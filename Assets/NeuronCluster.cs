@@ -1,78 +1,113 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class NeuronCluster {
     int numNeurons;
     int numExposed;
     public const int CONNECTION_MAGNITUDE_CAP = 16;
+    public const int CONNECTION_MAGNITUDE_THRESH = 4;
     public const int ACTIVATION_MAGNITUDE_CAP = 16;
     public const int ACTIVATION_MAGNITUDE_THRESH = 8;
     public const int SUM_THRESHOLD = 4;
+    int[] externalInputs;
+    int[] externalOutputs;
     int[] activations;
-    int[] activationTotals;
+    int[] sumTotals;
     int[] nextTimestepActivations;
     int[][] connections;
-
-    // ASSIGN NEURONS TO INCOMING AND OUTGOING. try figuring out how to make them the SAME???
-
-    // drives reinforcement positive or negative of connections, basically learning rate
-    public int externalEmotionalState;
-    public const int EMOTION_ACTIVATION_THRESHOLD = 4;
 
     public NeuronCluster(int numNeurons, int numExposed) {
         this.numNeurons = numNeurons;
         this.numExposed = numExposed;
+        externalInputs = new int[numExposed];
+        externalOutputs = new int[numExposed];
         activations = new int[numNeurons];
-        activationTotals = new int[numNeurons];
+        sumTotals = new int[numNeurons];
         nextTimestepActivations = new int[numNeurons];
         connections = new int[numNeurons][];
         for (int i = 0; i < connections.Length; i++) {
             connections[i] = new int[numNeurons];
-        }
-    }
-
-    public void ClearActivationTotals() {
-        for (int i = 0; i < numNeurons; i++) {
-            activationTotals[i] = 0;
-        }
-    }
-
-    public void AddInternalActivations() {
-        for (int srcIdx = 0; srcIdx < numNeurons; srcIdx++) {
-            int[] setOfConnections = connections[srcIdx];
-            for (int destIdx = 0; destIdx < numNeurons; destIdx++) {
-                int srcActivation = activations[srcIdx];
-                int add = (srcActivation > ACTIVATION_MAGNITUDE_THRESH ? 1 : (srcActivation < -ACTIVATION_MAGNITUDE_THRESH ? -1 : 0));
-                activationTotals[destIdx] += add;
+            for (int j = 0; j < numNeurons; j++) {
+                // fully randomize connections
+                connections[i][j] = -CONNECTION_MAGNITUDE_CAP + Mathf.FloorToInt(Random.value * (2 * CONNECTION_MAGNITUDE_CAP + 1));
             }
         }
     }
 
+    public void SetExternalInput(int idx, int input) {
+        if (idx >= externalInputs.Length) {
+            Debug.LogError(string.Format("Tried to set external input {0} of only {1}", idx, externalInputs.Length));
+            return;
+        }
+        externalInputs[idx] = input;
+    }
+
+    public int GetExternalOutput(int idx) {
+        if (idx >= externalOutputs.Length) {
+            Debug.LogError(string.Format("Tried to get external output {0} of only {1}", idx, externalOutputs.Length));
+            return 0;
+        }
+        return externalOutputs[idx];
+    }
+
+    public void FullTimestep(int finalEmotionalState) {
+        // assume inputs are already setup
+        ClearActivationTotals();
+        SumInternalActivations();
+        Learn(finalEmotionalState);
+        CommitActivationSums();
+        ApplyNextTimestepActivations();
+        UpdateExternalOutputs();
+    }
+
+    void ClearActivationTotals() {
+        for (int i = 0; i < numNeurons; i++) {
+            sumTotals[i] = 0;
+        }
+    }
+
+    void SumInternalActivations() {
+        for (int srcIdx = 0; srcIdx < numNeurons; srcIdx++) {
+            int[] setOfConnections = connections[srcIdx];
+            int srcActivation = activations[srcIdx];
+            if (srcIdx < numExposed) {
+                srcActivation = externalInputs[srcIdx];
+            }
+            for (int destIdx = 0; destIdx < numNeurons; destIdx++) {
+                int connection = setOfConnections[destIdx];
+                int connectionMult = (connection > CONNECTION_MAGNITUDE_THRESH ? 1 : (connection < -CONNECTION_MAGNITUDE_THRESH ? -1 : 0));
+                int add = (srcActivation > ACTIVATION_MAGNITUDE_THRESH ? 1 : (srcActivation < -ACTIVATION_MAGNITUDE_THRESH ? -1 : 0));
+                sumTotals[destIdx] += add * connectionMult;
+            }
+        }
+    }
+
+    /*
     public void AddToExposedActivationSum(int idx, int srcActivation) {
         if (idx >= numExposed) {
             Debug.LogError("Tried to externally change non-exposed neuron " + idx);
             return;
         }
         int add = (srcActivation > ACTIVATION_MAGNITUDE_THRESH ? 1 : (srcActivation < -ACTIVATION_MAGNITUDE_THRESH ? -1 : 0));
-        activationTotals[idx] += add;
+        inputTotals[idx] += add;
     }
+    */
 
-    public int GetExposedActivation(int idx) {
-        if (idx >= numExposed) {
-            Debug.LogError("Tried to externally read non-exposed neuron " + idx);
-            return 0;
+    void UpdateExternalOutputs() {
+        for (int i = 0; i < numExposed; i++) {
+            externalOutputs[i] = activations[i];
         }
-        return activations[idx];
     }
-
-    public void CommitActivationSums() {
+    
+    void CommitActivationSums() {
         for (int idx = 0; idx < numNeurons; idx++) {
-            int add = activationTotals[idx] > SUM_THRESHOLD ? 1 : -1;
+            int add = sumTotals[idx] > SUM_THRESHOLD ? 1 : -1;
             nextTimestepActivations[idx] = Mathf.Clamp(nextTimestepActivations[idx] + add, 0, ACTIVATION_MAGNITUDE_CAP);
         }
     }
-    
+
     // TODO ACTUALLY DO THE LEARNING BY CHANGING THE CONNECTION STRENGTHS
-    
+
     /* DESIGN FOR HOW THE LEARNING CALCULATION WORKS */
     /*
      * should there be negative activation?
@@ -90,22 +125,58 @@ public class NeuronCluster {
      * 0 + - -> 0
      * + 0 - -> 0
      * 0 0 - -> 0
+     * This causes things to never passively decay. Maybe needs some randomness for that
      */
-
-    /* DESIGN FOR HOW ACTIVATION WORKS */
-    /*
-     * uh. so if a weight has its SECOND TOP BIT SET, it counts for +1 or -1,
-     * depending on whether the TOP BIT is set (positive or negative)
-     * if the sum is more or less than SUM_ACTIVATION_MAGNITUDE, then the activation is 
-     * increased or decreased.
-     */
-
+     
+    // finalEmotionState should be -1, +1, or 0
+    void Learn(int finalEmotionState) {
+        for (var src = 0; src < numNeurons; src++) {
+            bool srcActive = activations[src] > ACTIVATION_MAGNITUDE_THRESH;
+            for (var dest = 0; dest < numNeurons; dest++) {
+                // skip learning for external ones? maybe keep their weights always 0.
+                // its still a bit unclear how those work. There need to be separate input and output ones..?
+                // TODO how to apply randomization? randomize weights, or sometimes have random outputs?
+                bool destPastThreshold = sumTotals[dest] > SUM_THRESHOLD;
+                // if src implies dest, change the weighting
+                if (srcActive && destPastThreshold) {
+                    connections[src][dest] = Mathf.Clamp(connections[src][dest] + finalEmotionState,
+                            -CONNECTION_MAGNITUDE_CAP, CONNECTION_MAGNITUDE_CAP); // LEARN
+                }
+            }
+        }
+    }
+   
     // TODO CONNECT WITH OTHER MODULES
 
-    public void ApplyNextTimestepActivations() {
+    void ApplyNextTimestepActivations() {
         int[] buffer = activations;
         activations = nextTimestepActivations;
         nextTimestepActivations = buffer;
         // can clear out next timestep activations, but no need
+    }
+
+    public List<int> ToIntList() {
+        List<int> result = new List<int>();
+        result.Add(numNeurons);
+        result.Add(numExposed);
+        for (int i = 0; i < externalInputs.Length; i++) {
+            result.Add(externalInputs[i]);
+        }
+        for (int i = 0; i < externalOutputs.Length; i++) {
+            result.Add(externalInputs[i]);
+        }
+        for (int i = 0; i < numNeurons; i++) {
+            result.Add(activations[i]);
+        }
+        for (int i = 0; i < numNeurons; i++) {
+            for (int j = 0; j < numNeurons; j++) {
+                result.Add(connections[i][j]);
+            }
+        }
+        return result;
+    }
+
+    public void FromIntList(List<int> list) {
+        // TODO
     }
 }
