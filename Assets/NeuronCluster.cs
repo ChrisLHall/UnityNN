@@ -71,12 +71,12 @@ public class NeuronCluster {
             int[] setOfConnections = connections[srcIdx];
             int srcActivation = activations[srcIdx];
             if (srcIdx < numExposed) {
-                srcActivation = externalInputs[srcIdx];
+                srcActivation = Mathf.Clamp(externalInputs[srcIdx], 0, ACTIVATION_MAGNITUDE_CAP);
             }
             for (int destIdx = 0; destIdx < numNeurons; destIdx++) {
                 int connection = setOfConnections[destIdx];
                 int connectionMult = (connection > CONNECTION_MAGNITUDE_THRESH ? 1 : (connection < -CONNECTION_MAGNITUDE_THRESH ? -1 : 0));
-                int add = (srcActivation > ACTIVATION_MAGNITUDE_THRESH ? 1 : (srcActivation < -ACTIVATION_MAGNITUDE_THRESH ? -1 : 0));
+                int add = (srcActivation > ACTIVATION_MAGNITUDE_THRESH ? 1 : 0);
                 sumTotals[destIdx] += add * connectionMult;
             }
         }
@@ -112,7 +112,7 @@ public class NeuronCluster {
     /*
      * should there be negative activation?
      * hmm
-     * i dont think so?
+     * no.
      * how would a negative weight even happen
      * well so you can get positive or negative reactions
      * but activations are only positive? yes
@@ -153,6 +153,14 @@ public class NeuronCluster {
         activations = nextTimestepActivations;
         nextTimestepActivations = buffer;
         // can clear out next timestep activations, but no need
+    }
+
+    public void PrintToTexture(Texture2D tex, int startX, int startY) {
+        for (int i = 0; i < numNeurons; i++) {
+            if (i < numExposed) {
+
+            }
+        }
     }
 
     public void ToIntList(List<int> result) {

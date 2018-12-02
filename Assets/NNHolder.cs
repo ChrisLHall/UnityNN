@@ -38,6 +38,8 @@ public class NNHolder : MonoBehaviour {
     // base layer has baseConnNum connections from upper layers, and inputOutputConnNum going to the IO vectors
     public int inputOutputConnNum; 
     public int EmotionState { get; set; }
+    const int EMOTION_MAGNITUDE_CAP = 16;
+    const int EMOTION_MAGNITUDE_THRESH = 4;
 
     [HideInInspector]
     public int[] inputVector;
@@ -114,8 +116,13 @@ public class NNHolder : MonoBehaviour {
     }
 
     public void DoTimestep() {
-        // TODO figure out how emotion should work
-        EmotionState = -1 + Mathf.FloorToInt(Random.value * 3f);
+        if (EmotionState > 0) {
+            EmotionState--;
+        } else if (EmotionState < 0) {
+            EmotionState++;
+        }
+
+        int finalEmotionState = (EmotionState > EMOTION_MAGNITUDE_THRESH ? 1 : (EmotionState < -EMOTION_MAGNITUDE_THRESH ? -1 : 0));
         // First, copy inputs / connection values into all subnets
         for (int i = 0; i < connections.Length; i++) {
             NNConnection conn = connections[i];
@@ -133,7 +140,7 @@ public class NNHolder : MonoBehaviour {
         }
         // Second, subnets process based on emotional state
         for (int i = 0; i < subNets.Length; i++) {
-            subNets[i].FullTimestep(EmotionState);
+            subNets[i].FullTimestep(finalEmotionState);
         }
         // Third, set outputs
         for (int i = 0; i < connections.Length; i++) {
@@ -149,6 +156,28 @@ public class NNHolder : MonoBehaviour {
         // then let the world simulate for a sec
     }
 
+    public void SetInput(int idx, int value) {
+        if (idx >= InputOutputConnTotal) {
+            Debug.LogError(string.Format("Cannot set NNHolder IO idx {0} of {1}", idx, InputOutputConnTotal));
+            return;
+        }
+        inputVector[idx] = value;
+    }
+
+    public int GetOutput(int idx) {
+        if (idx >= InputOutputConnTotal) {
+            Debug.LogError(string.Format("Cannot get NNHolder IO idx {0} of {1}", idx, InputOutputConnTotal));
+            return 0;
+        }
+        return outputVector[idx];
+    }
+
+    public void SetGoodEmotion() {
+        EmotionState = Mathf.Clamp(EmotionState + EMOTION_MAGNITUDE_CAP, -EMOTION_MAGNITUDE_CAP, EMOTION_MAGNITUDE_CAP);
+    }
+    public void SetBadEmotion() {
+        EmotionState = Mathf.Clamp(EmotionState - EMOTION_MAGNITUDE_CAP, -EMOTION_MAGNITUDE_CAP, EMOTION_MAGNITUDE_CAP);
+    }
 
     public void ToIntList(List<int> result) {
         result.Add(subnetNeurons);
