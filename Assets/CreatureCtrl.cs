@@ -67,7 +67,7 @@ public class CreatureCtrl : MonoBehaviour {
 
     private void FixedUpdate() {
         // constantly set inputs
-        bool fwd = brain.GetOutput(128) > 4;
+        bool fwd = brain.GetOutput(128) > 1;
         if (Input.GetKey(KeyCode.UpArrow)) {
             fwd = true;
             brain.SetInput(128, 16);
@@ -77,8 +77,8 @@ public class CreatureCtrl : MonoBehaviour {
         if (fwd) {
             rb.AddForce(transform.forward * 10f);
         }
-
-        bool left = brain.GetOutput(129) > 4;
+        
+        bool left = brain.GetOutput(129) > 1;
         if (Input.GetKey(KeyCode.LeftArrow)) {
             left = true;
             brain.SetInput(129, 16);
@@ -89,7 +89,7 @@ public class CreatureCtrl : MonoBehaviour {
             rb.AddTorque(transform.up * -10f);
         }
 
-        bool right = brain.GetOutput(130) > 4;
+        bool right = brain.GetOutput(130) > 1;
         if (Input.GetKey(KeyCode.RightArrow)) {
             right = true;
             brain.SetInput(130, 16);
@@ -103,7 +103,6 @@ public class CreatureCtrl : MonoBehaviour {
 
     private void OnCollisionEnter(Collision collision) {
         var food = collision.gameObject.GetComponent<Food>();
-        Debug.Log("Hit " + collision.gameObject.name);
         if (null != food) {
             brain.SetGoodEmotion();
             food.Respawn();

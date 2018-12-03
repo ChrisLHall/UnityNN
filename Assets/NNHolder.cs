@@ -192,8 +192,9 @@ public class NNHolder : MonoBehaviour {
         }
         int rowsForIO = Mathf.CeilToInt((float)InputOutputConnTotal / DebugTextureWidthPixels);
         for (int i = 0; i < inputVector.Length; i++) {
-            tex.SetPixel(i % DebugTextureWidthPixels, DebugTextureWidthPixels + Mathf.FloorToInt((float)i / DebugTextureWidthPixels), Color.magenta / 16f * inputVector[i]);
-            tex.SetPixel(i % DebugTextureWidthPixels, rowsForIO + DebugTextureWidthPixels + Mathf.FloorToInt((float)i / DebugTextureWidthPixels), Color.blue / 16f * outputVector[i]);
+            int startY = DebugTextureWidthTiles * (subnetNeurons + 3);
+            tex.SetPixel(i % DebugTextureWidthPixels, startY + Mathf.FloorToInt((float)i / DebugTextureWidthPixels), Color.magenta / 16f * inputVector[i]);
+            tex.SetPixel(i % DebugTextureWidthPixels, rowsForIO + startY + Mathf.FloorToInt((float)i / DebugTextureWidthPixels), Color.blue / 16f * outputVector[i]);
         }
         tex.Apply();
     }

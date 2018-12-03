@@ -7,8 +7,8 @@ public class NeuronCluster {
     public const int CONNECTION_MAGNITUDE_CAP = 16;
     public const int CONNECTION_MAGNITUDE_THRESH = 4;
     public const int ACTIVATION_MAGNITUDE_CAP = 16;
-    public const int ACTIVATION_MAGNITUDE_THRESH = 8;
-    public const int SUM_THRESHOLD = 1;
+    public const int ACTIVATION_MAGNITUDE_THRESH = 4;
+    public const int SUM_THRESHOLD = 2;
     int[] externalInputs;
     int[] externalOutputs;
     int[] activations;
@@ -106,11 +106,15 @@ public class NeuronCluster {
     void CommitActivationSums() {
         for (int idx = 0; idx < numNeurons; idx++) {
             // test quickly adding to activation
-            int add = sumTotals[idx] > SUM_THRESHOLD ? 4 : -1;
+            int add = sumTotals[idx] > SUM_THRESHOLD ? 2 : -1;
             nextTimestepActivations[idx] = Mathf.Clamp(nextTimestepActivations[idx] + add, 0, ACTIVATION_MAGNITUDE_CAP);
+            if (nextTimestepActivations[idx] == ACTIVATION_MAGNITUDE_CAP) {
+                // get tired after reaching the cap
+                nextTimestepActivations[idx] = 0;
+            }
             if (Random.value < .005f) {
                 // randomly fire neurons to try and create activity?
-                nextTimestepActivations[idx] = ACTIVATION_MAGNITUDE_CAP;
+                nextTimestepActivations[idx] = ACTIVATION_MAGNITUDE_CAP - 1;
             }
         }
     }
@@ -152,7 +156,7 @@ public class NeuronCluster {
                 bool destPastThreshold = sumTotals[dest] > SUM_THRESHOLD;
                 // if src implies dest, change the weighting
                 if (srcActive && destPastThreshold) {
-                    connections[src][dest] = Mathf.Clamp(connections[src][dest] + finalEmotionState,
+                    connections[src][dest] = Mathf.Clamp(connections[src][dest] + 2 * finalEmotionState,
                             -CONNECTION_MAGNITUDE_CAP, CONNECTION_MAGNITUDE_CAP); // LEARN
                 } else if (srcActive && !destPastThreshold) {
                     // if src and dest dont predict, un-learn the weighting
