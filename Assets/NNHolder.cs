@@ -154,10 +154,6 @@ public class NNHolder : MonoBehaviour {
             NeuronCluster srcNet = subNets[conn.srcNet];
             outputVector[conn.destIdx] = srcNet.GetExternalOutput(conn.srcIdx);
         }
-
-        // then let the world simulate for a sec
-        // TODO maybe toggle this
-        PrintToTexture(DebugBrainViewer.inst.Texture);
     }
 
     public void SetInput(int idx, int value) {

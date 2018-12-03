@@ -105,9 +105,13 @@ public class NeuronCluster {
     
     void CommitActivationSums() {
         for (int idx = 0; idx < numNeurons; idx++) {
-            int add = sumTotals[idx] > SUM_THRESHOLD ? 1 : -1;
-            //Debug.Log(add);
+            // test quickly adding to activation
+            int add = sumTotals[idx] > SUM_THRESHOLD ? 4 : -1;
             nextTimestepActivations[idx] = Mathf.Clamp(nextTimestepActivations[idx] + add, 0, ACTIVATION_MAGNITUDE_CAP);
+            if (Random.value < .005f) {
+                // randomly fire neurons to try and create activity?
+                nextTimestepActivations[idx] = ACTIVATION_MAGNITUDE_CAP;
+            }
         }
     }
 
@@ -124,11 +128,11 @@ public class NeuronCluster {
      * i will write: src dest "emotion" --> weight change. +, -, 0
      * + + + -> +
      * 0 + + -> 0
-     * + 0 + -> 0
+     * + 0 + -> -
      * 0 0 + -> 0
      * + + - -> -
      * 0 + - -> 0
-     * + 0 - -> 0
+     * + 0 - -> +
      * 0 0 - -> 0
      * This causes things to never passively decay. Maybe needs some randomness for that
      */
@@ -150,6 +154,10 @@ public class NeuronCluster {
                 if (srcActive && destPastThreshold) {
                     connections[src][dest] = Mathf.Clamp(connections[src][dest] + finalEmotionState,
                             -CONNECTION_MAGNITUDE_CAP, CONNECTION_MAGNITUDE_CAP); // LEARN
+                } else if (srcActive && !destPastThreshold) {
+                    // if src and dest dont predict, un-learn the weighting
+                    connections[src][dest] = Mathf.Clamp(connections[src][dest] - finalEmotionState,
+                            -CONNECTION_MAGNITUDE_CAP, CONNECTION_MAGNITUDE_CAP); // LEARN
                 }
             }
         }
@@ -167,14 +175,18 @@ public class NeuronCluster {
     public void PrintToTexture(Texture2D tex, int startX, int startY) {
         for (int i = 0; i < numExposed; i++) {
             tex.SetPixel(startX + i, startY + 0, Color.green / 16f * externalInputs[i]);
-            tex.SetPixel(startX + i, startY + 1, Color.yellow / 16f * externalOutputs[i]);
+            tex.SetPixel(startX + i, startY + 1, Color.cyan / 16f * externalOutputs[i]);
         }
         for (int i = 0; i < numNeurons; i++) {
-            tex.SetPixel(startX + i, startY + 2, Color.cyan / 16f * activations[i]);
+            tex.SetPixel(startX + i, startY + 2, Color.white / 16f * activations[i]);
         }
         for (int i = 0; i < numNeurons; i++) {
             for (int j = 0; j < numNeurons; j++) {
-                tex.SetPixel(startX + i, startY + 3 + j, Color.red / 16f * connections[i][j]);
+                Color cStart = Color.yellow / 16f;
+                if (connections[i][j] < 0) {
+                    cStart = Color.red / 16f;
+                }
+                tex.SetPixel(startX + i, startY + 3 + j, cStart * Mathf.Abs(connections[i][j]));
             }
         }
     }
