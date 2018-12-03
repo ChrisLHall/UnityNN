@@ -6,6 +6,7 @@ public class Food : MonoBehaviour {
     Vector3 startPos;
     float spawnedTime;
     Rigidbody rb;
+    public bool isBadFood;
     
     void Start () {
         rb = GetComponent<Rigidbody>();

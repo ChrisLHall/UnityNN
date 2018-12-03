@@ -12,6 +12,7 @@ public class CreatureCtrl : MonoBehaviour {
     public Text statusText;
     public int eyeCameraWidth;
     public int eyeCameraHeight;
+    int totalFood;
 
     // Use this for initialization
     void Awake () {
@@ -48,7 +49,7 @@ public class CreatureCtrl : MonoBehaviour {
         if (Time.unscaledTime > lastRenderTime + .2f) {
             lastRenderTime = Time.unscaledTime;
             brain.PrintToTexture(DebugBrainViewer.inst.Texture);
-            statusText.text = string.Format("Emotion (learning) state, press g or b to change: {0}. Time scale, press f or s to change: {1}", brain.EmotionState, Time.timeScale);
+            statusText.text = string.Format("Emotion (learning) state, press g or b to change: {0}. Time scale, press f or s to change: {1}. Food collected: {2}", brain.EmotionState, Time.timeScale, totalFood);
         }
 
         if (Input.GetKeyDown(KeyCode.G)) {
@@ -75,7 +76,7 @@ public class CreatureCtrl : MonoBehaviour {
             brain.SetInput(128, 0);
         }
         if (fwd) {
-            rb.AddForce(transform.forward * 10f);
+            rb.AddForce(transform.forward * 8f);
         }
         
         bool left = brain.GetOutput(129) > 1;
@@ -86,7 +87,7 @@ public class CreatureCtrl : MonoBehaviour {
             brain.SetInput(129, 0);
         }
         if (left) {
-            rb.AddTorque(transform.up * -10f);
+            rb.AddTorque(transform.up * -5f);
         }
 
         bool right = brain.GetOutput(130) > 1;
@@ -97,14 +98,19 @@ public class CreatureCtrl : MonoBehaviour {
             brain.SetInput(130, 0);
         }
         if (right) {
-            rb.AddTorque(transform.up * 10f);
+            rb.AddTorque(transform.up * 5f);
         }
     }
 
     private void OnCollisionEnter(Collision collision) {
         var food = collision.gameObject.GetComponent<Food>();
         if (null != food) {
-            brain.SetGoodEmotion();
+            if (food.isBadFood) {
+                brain.SetBadEmotion();
+            } else {
+                totalFood++;
+                brain.SetGoodEmotion();
+            }
             food.Respawn();
         }
     }
