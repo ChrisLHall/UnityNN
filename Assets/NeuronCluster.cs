@@ -6,8 +6,8 @@ public class NeuronCluster {
     int numExposed;
     public const int CONNECTION_MAGNITUDE_CAP = 64;
     public const int CONNECTION_MAGNITUDE_THRESH = 8;
-    public const int ACTIVATION_TIMER = 8;
-    public const int COOLDOWN_TIMER = 16;
+    public const int ACTIVATION_TIMER = 32;
+    public const int COOLDOWN_TIMER = 64;
     public const int SUM_THRESHOLD = 3;
     int[] externalInputs;
     int[] externalOutputs;
@@ -154,7 +154,8 @@ public class NeuronCluster {
         for (var src = 0; src < numNeurons; src++) {
             bool srcActive = activations[src] > 0;
             for (var dest = 0; dest < numNeurons; dest++) {
-                if (activations[dest] != ACTIVATION_TIMER || activations[src] > activations[dest]) {
+                bool destActive = activations[dest] > 0;
+                if (/*activations[dest] != ACTIVATION_TIMER ||*/ activations[src] >= activations[dest]) {
                     // TEST: only learn when we just fired
                     // TEST: only learn when src fired before dest
                     continue;
