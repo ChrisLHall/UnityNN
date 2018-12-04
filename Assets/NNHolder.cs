@@ -66,10 +66,10 @@ public class NNHolder : MonoBehaviour {
             int endIdx = (int)Mathf.Pow(2, layer + 1) - 1;
             for (int i = startIdx; i < endIdx; i++) {
                 int exposed = 3 * baseConnNum;
-                if (layer == 0) {
-                    exposed = 2 * baseConnNum;
-                } else if (layer == layers - 1) {
+                if (layer == layers - 1) {
                     exposed = inputOutputConnNum + baseConnNum;
+                } else if (layer == 0) {
+                    exposed = 2 * baseConnNum;
                 }
                 subNets[i] = new NeuronCluster(subnetNeurons, exposed);
                 // set up connections. Connect first 2 * base to the lower layer and last 1 * base to the higher layer
@@ -181,18 +181,18 @@ public class NNHolder : MonoBehaviour {
 
     public int DebugTextureWidthTiles { get { return Mathf.CeilToInt(Mathf.Pow(2, layers / 2f)); } }
     public int DebugTextureWidthPixels { get { return DebugTextureWidthTiles * subnetNeurons; } }
-    public int DebugTextureHeightPixels {  get { return DebugTextureWidthTiles * (subnetNeurons + 3)
+    public int DebugTextureHeightPixels {  get { return DebugTextureWidthTiles * (subnetNeurons + 2)
             + 2 * Mathf.CeilToInt((float)InputOutputConnTotal / DebugTextureWidthPixels); } }
 
     public void PrintToTexture(Texture2D tex) {
         for (int i = 0; i < subNets.Length; i++) {
             int tileX = i % DebugTextureWidthTiles;
             int tileY = Mathf.FloorToInt((float)i / DebugTextureWidthTiles);
-            subNets[i].PrintToTexture(tex, tileX * subnetNeurons, tileY * (subnetNeurons + 3));
+            subNets[i].PrintToTexture(tex, tileX * subnetNeurons, tileY * (subnetNeurons + 2));
         }
         int rowsForIO = Mathf.CeilToInt((float)InputOutputConnTotal / DebugTextureWidthPixels);
         for (int i = 0; i < inputVector.Length; i++) {
-            int startY = DebugTextureWidthTiles * (subnetNeurons + 3);
+            int startY = DebugTextureWidthTiles * (subnetNeurons + 2);
             tex.SetPixel(i % DebugTextureWidthPixels, startY + Mathf.FloorToInt((float)i / DebugTextureWidthPixels), Color.magenta / 16f * inputVector[i]);
             tex.SetPixel(i % DebugTextureWidthPixels, rowsForIO + startY + Mathf.FloorToInt((float)i / DebugTextureWidthPixels), Color.blue / 16f * outputVector[i]);
         }

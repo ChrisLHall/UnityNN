@@ -78,9 +78,9 @@ public class NeuronCluster {
                 int connection = setOfConnections[destIdx];
                 int connectionMult = (connection > CONNECTION_MAGNITUDE_THRESH ? 1 : (connection < -CONNECTION_MAGNITUDE_THRESH ? -1 : 0));
                 // sometimes pretend its a strong connection
-                if (Random.value < .05f) {
-                    connectionMult = 1;
-                }
+                //if (Random.value < .05f) {
+                //    connectionMult = 1;
+                //}
                 int add = (srcActivation > ACTIVATION_MAGNITUDE_THRESH ? 1 : 0);
                 sumTotals[destIdx] += add * connectionMult;
 
@@ -114,7 +114,7 @@ public class NeuronCluster {
         for (int idx = 0; idx < numNeurons; idx++) {
             // test quickly adding to activation
             int add = sumTotals[idx] > SUM_THRESHOLD ? 2 : -1;
-            nextTimestepActivations[idx] = Mathf.Clamp(nextTimestepActivations[idx] + add, 0, ACTIVATION_MAGNITUDE_CAP);
+            nextTimestepActivations[idx] = Mathf.Clamp(activations[idx] + add, 0, ACTIVATION_MAGNITUDE_CAP);
             if (nextTimestepActivations[idx] == ACTIVATION_MAGNITUDE_CAP) {
                 // get tired after reaching the cap
                 nextTimestepActivations[idx] = 0;
@@ -184,7 +184,7 @@ public class NeuronCluster {
                 // unless J is an output
                 // i and j cannot be the same
                 // inputs cannot connect straight to output
-                if ((j >= numExposed && i >= j) || i == j || (j < numExposed && i < numExposed)) {
+                if (/*(j >= numExposed && i >= j) ||*/ i == j || (j < numExposed && i < numExposed)) {
                     connections[i][j] = 0;
                 }
             }
@@ -202,11 +202,16 @@ public class NeuronCluster {
 
     public void PrintToTexture(Texture2D tex, int startX, int startY) {
         for (int i = 0; i < numExposed; i++) {
-            tex.SetPixel(startX + i, startY + 0, Color.green / ACTIVATION_MAGNITUDE_CAP * externalInputs[i]);
+            tex.SetPixel(startX + i, startY + 0, Color.magenta / ACTIVATION_MAGNITUDE_CAP * externalInputs[i]);
             tex.SetPixel(startX + i, startY + 1, Color.cyan / ACTIVATION_MAGNITUDE_CAP * externalOutputs[i]);
         }
-        for (int i = 0; i < numNeurons; i++) {
-            tex.SetPixel(startX + i, startY + 2, Color.white / ACTIVATION_MAGNITUDE_CAP * activations[i]);
+        for (int i = numExposed; i < numNeurons; i++) {
+            Color cStart = Color.green / ACTIVATION_MAGNITUDE_CAP;
+            if (activations[i] > ACTIVATION_MAGNITUDE_THRESH) {
+                cStart = Color.white / ACTIVATION_MAGNITUDE_CAP;
+            }
+            tex.SetPixel(startX + i, startY + 0, cStart * activations[i]);
+            tex.SetPixel(startX + i, startY + 1, cStart * activations[i]);// double up for visibility
         }
         for (int i = 0; i < numNeurons; i++) {
             for (int j = 0; j < numNeurons; j++) {
@@ -214,7 +219,7 @@ public class NeuronCluster {
                 if (connections[i][j] < 0) {
                     cStart = Color.red / CONNECTION_MAGNITUDE_CAP;
                 }
-                tex.SetPixel(startX + i, startY + 3 + j, cStart * Mathf.Abs(connections[i][j]));
+                tex.SetPixel(startX + i, startY + 2 + j, cStart * Mathf.Abs(connections[i][j]));
             }
         }
     }
