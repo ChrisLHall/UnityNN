@@ -32,14 +32,19 @@ public class CreatureCtrl : MonoBehaviour {
             //brainTexture.ReadPixels(new Rect(0, 0, visionTexture.width, visionTexture.height), 0, 0);
             //brainTexture.Apply();
             for (int x = 0; x < eyeCameraWidth; x++) {
-                for (int y = 0; y < eyeCameraHeight; y++) {
-                    Ray camCast = eyeCamera.ViewportPointToRay(new Vector3((x + .5f) / eyeCameraWidth, (y + .5f) / eyeCameraHeight, 1f));
-                    RaycastHit rh;
-                    bool hit = Physics.Raycast(camCast, out rh, 10f);
-                    bool isRed = hit ? rh.transform.gameObject.GetComponent<Food>() != null : false;
-                    brainTexture.SetPixel(x, y, isRed ? Color.red : Color.black);
-                    brain.SetInput(y * 16 + x, isRed ? 16 : 0);
-                }
+                Ray camCast = eyeCamera.ViewportPointToRay(new Vector3((x + .5f) / eyeCameraWidth, .5f, .5f));
+                Debug.DrawRay(camCast.origin, camCast.direction, Color.green, .1f);
+                RaycastHit rh;
+
+                bool hit = Physics.Raycast(camCast, out rh, 10f);
+                bool hitFood = hit ? rh.transform.gameObject.GetComponent<Food>() != null : false;
+                brain.SetInput(x, hitFood ? NeuronCluster.ACTIVATION_TIMER - 1 : 0);
+                brainTexture.SetPixel(x, 0, hitFood ? Color.red : Color.black);
+
+                hit = Physics.Raycast(camCast, out rh, 1f);
+                bool hitWall = hit ? rh.transform.gameObject.GetComponent<Food>() == null : false;
+                brain.SetInput(eyeCameraWidth + x, hitWall ? NeuronCluster.ACTIVATION_TIMER - 1 : 0);
+                brainTexture.SetPixel(x, 1, hitWall ? Color.gray : Color.black);
             }
             brainTexture.Apply();
             // inputs are already up to date
@@ -68,37 +73,48 @@ public class CreatureCtrl : MonoBehaviour {
 
     private void FixedUpdate() {
         // constantly set inputs
-        bool fwd = brain.GetOutput(128) > 1;
+        bool fwd = brain.GetOutput(64) > 0;
         if (Input.GetKey(KeyCode.UpArrow)) {
             fwd = true;
-            brain.SetInput(128, 16);
+            brain.SetInput(64, NeuronCluster.ACTIVATION_TIMER - 1);
         } else {
-            brain.SetInput(128, 0);
+            brain.SetInput(64, 0);
         }
         if (fwd) {
-            rb.AddForce(transform.forward * 8f);
-        }
-        
-        bool left = brain.GetOutput(129) > 1;
-        if (Input.GetKey(KeyCode.LeftArrow)) {
-            left = true;
-            brain.SetInput(129, 16);
-        } else {
-            brain.SetInput(129, 0);
-        }
-        if (left) {
-            rb.AddTorque(transform.up * -5f);
+            rb.MovePosition(transform.position + transform.forward * 1f * Time.fixedDeltaTime);
         }
 
-        bool right = brain.GetOutput(130) > 1;
+        bool back = brain.GetOutput(67) > 0;
+        if (Input.GetKey(KeyCode.DownArrow)) {
+            back = true;
+            brain.SetInput(67, NeuronCluster.ACTIVATION_TIMER - 1);
+        } else {
+            brain.SetInput(67, 0);
+        }
+        if (back) {
+            rb.MovePosition(transform.position + transform.forward * -.8f * Time.fixedDeltaTime);
+        }
+
+        bool left = brain.GetOutput(65) > 0;
+        if (Input.GetKey(KeyCode.LeftArrow)) {
+            left = true;
+            brain.SetInput(65, NeuronCluster.ACTIVATION_TIMER - 1);
+        } else {
+            brain.SetInput(65, 0);
+        }
+        if (left) {
+            rb.MoveRotation(Quaternion.AngleAxis(-3f, transform.up) * transform.rotation);
+        }
+
+        bool right = brain.GetOutput(66) > 0;
         if (Input.GetKey(KeyCode.RightArrow)) {
             right = true;
-            brain.SetInput(130, 16);
+            brain.SetInput(66, NeuronCluster.ACTIVATION_TIMER - 1);
         } else {
-            brain.SetInput(130, 0);
+            brain.SetInput(66, 0);
         }
         if (right) {
-            rb.AddTorque(transform.up * 5f);
+            rb.MoveRotation(Quaternion.AngleAxis(3f, transform.up) * transform.rotation);
         }
     }
 
@@ -112,6 +128,9 @@ public class CreatureCtrl : MonoBehaviour {
                 brain.SetGoodEmotion();
             }
             food.Respawn();
+        } else {
+            // Be sad when hitting the wall i guess, who fuckin knows at this point
+            brain.SetBadEmotion();
         }
     }
 }

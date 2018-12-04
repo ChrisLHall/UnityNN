@@ -6,14 +6,14 @@ public class NeuronCluster {
     int numExposed;
     public const int CONNECTION_MAGNITUDE_CAP = 64;
     public const int CONNECTION_MAGNITUDE_THRESH = 8;
-    public const int ACTIVATION_MAGNITUDE_CAP = 32;
-    public const int ACTIVATION_MAGNITUDE_THRESH = 4;
-    public const int SUM_THRESHOLD = 4;
+    public const int ACTIVATION_TIMER = 8;
+    public const int COOLDOWN_TIMER = 16;
+    public const int SUM_THRESHOLD = 3;
     int[] externalInputs;
     int[] externalOutputs;
     int[] activations;
     int[] sumTotals;
-    int[] nextTimestepActivations;
+    int[] cooldowns;
     int[][] connections;
 
     public NeuronCluster(int numNeurons, int numExposed) {
@@ -23,7 +23,7 @@ public class NeuronCluster {
         externalOutputs = new int[numExposed];
         activations = new int[numNeurons];
         sumTotals = new int[numNeurons];
-        nextTimestepActivations = new int[numNeurons];
+        cooldowns = new int[numNeurons];
         connections = new int[numNeurons][];
         for (int i = 0; i < connections.Length; i++) {
             connections[i] = new int[numNeurons];
@@ -57,7 +57,6 @@ public class NeuronCluster {
         CommitActivationSums();
         Learn(finalEmotionalState);
         EnforceConnectionRules();
-        ApplyNextTimestepActivations();
         UpdateExternalOutputs();
     }
 
@@ -72,17 +71,18 @@ public class NeuronCluster {
             int[] setOfConnections = connections[srcIdx];
             int srcActivation = activations[srcIdx];
             if (srcIdx < numExposed) {
-                srcActivation = Mathf.Clamp(externalInputs[srcIdx], 0, ACTIVATION_MAGNITUDE_CAP);
+                srcActivation = Mathf.Clamp(externalInputs[srcIdx], 0, ACTIVATION_TIMER);
             }
             for (int destIdx = 0; destIdx < numNeurons; destIdx++) {
                 int connection = setOfConnections[destIdx];
                 int connectionMult = (connection > CONNECTION_MAGNITUDE_THRESH ? 1 : (connection < -CONNECTION_MAGNITUDE_THRESH ? -1 : 0));
+                int cooldownMult = (cooldowns[destIdx] == 0 ? 1 : 0);
                 // sometimes pretend its a strong connection
                 //if (Random.value < .05f) {
                 //    connectionMult = 1;
                 //}
-                int add = (srcActivation > ACTIVATION_MAGNITUDE_THRESH ? 1 : 0);
-                sumTotals[destIdx] += add * connectionMult;
+                int add = (srcActivation > 0 ? 1 : 0);
+                sumTotals[destIdx] += add * connectionMult * cooldownMult;
 
                 // sometimes perturb the connection value
                 if (Random.value < .005f) {
@@ -112,16 +112,15 @@ public class NeuronCluster {
     
     void CommitActivationSums() {
         for (int idx = 0; idx < numNeurons; idx++) {
-            // test quickly adding to activation
-            int add = sumTotals[idx] > SUM_THRESHOLD ? 2 : -1;
-            nextTimestepActivations[idx] = Mathf.Clamp(activations[idx] + add, 0, ACTIVATION_MAGNITUDE_CAP);
-            if (nextTimestepActivations[idx] == ACTIVATION_MAGNITUDE_CAP) {
-                // get tired after reaching the cap
-                nextTimestepActivations[idx] = 0;
-            }
-            if (Random.value < .002f) {
-                // randomly fire neurons to try and create activity? it tends to erase legitimate connections though.
-                nextTimestepActivations[idx] = ACTIVATION_MAGNITUDE_CAP - 1;
+            // test activating all at once
+            bool fired = sumTotals[idx] > SUM_THRESHOLD;
+            // randomly fire neurons to try and create activity? it tends to erase legitimate connections though.
+            if (fired || Random.value < .002f) {
+                activations[idx] = ACTIVATION_TIMER;
+                cooldowns[idx] = COOLDOWN_TIMER;
+            } else {
+                activations[idx] = Mathf.Max(activations[idx] - 1, 0);
+                cooldowns[idx] = Mathf.Max(cooldowns[idx] - 1, 0);
             }
         }
     }
@@ -153,18 +152,20 @@ public class NeuronCluster {
         // TODO TEST: learn always. Learn faster if emotionstate is set.
         int finalEmotionState = inputEmotionState * 4 + 1;
         for (var src = 0; src < numNeurons; src++) {
-            bool srcActive = activations[src] > ACTIVATION_MAGNITUDE_THRESH;
+            bool srcActive = activations[src] > 0;
             for (var dest = 0; dest < numNeurons; dest++) {
-                // skip learning for external ones? maybe keep their weights always 0.
-                // its still a bit unclear how those work. There need to be separate input and output ones..?
-                // TODO how to apply randomization? randomize weights, or sometimes have random outputs?
-                bool destPastThreshold = activations[dest] > ACTIVATION_MAGNITUDE_THRESH;
+                if (activations[dest] != ACTIVATION_TIMER || activations[src] > activations[dest]) {
+                    // TEST: only learn when we just fired
+                    // TEST: only learn when src fired before dest
+                    continue;
+                }
                 // if src implies dest, change the weighting
-                if (srcActive && destPastThreshold) {
+                if (srcActive) {
+                    // TODO: try doing this exponintially
                     connections[src][dest] = Mathf.Clamp(connections[src][dest] + 2 * finalEmotionState,
                             -CONNECTION_MAGNITUDE_CAP, CONNECTION_MAGNITUDE_CAP); // LEARN
-                } else if (srcActive && !destPastThreshold) {
-                    // if src and dest dont predict, un-learn the weighting
+                } else if (!srcActive) {
+                    // if src and dest dont predict, un-learn the weighting....maybe
                     if (finalEmotionState > 0) {
                         connections[src][dest] = Mathf.Clamp(connections[src][dest] - finalEmotionState,
                                 0, CONNECTION_MAGNITUDE_CAP); // UNLEARN
@@ -184,31 +185,22 @@ public class NeuronCluster {
                 // unless J is an output
                 // i and j cannot be the same
                 // inputs cannot connect straight to output
-                if (/*(j >= numExposed && i >= j) ||*/ i == j || (j < numExposed && i < numExposed)) {
+                if ((j >= numExposed && i >= j) || i == j || (j < numExposed && i < numExposed)) {
                     connections[i][j] = 0;
                 }
             }
         }
     }
    
-    // TODO CONNECT WITH OTHER MODULES
-
-    void ApplyNextTimestepActivations() {
-        int[] buffer = activations;
-        activations = nextTimestepActivations;
-        nextTimestepActivations = buffer;
-        // can clear out next timestep activations, but no need
-    }
-
     public void PrintToTexture(Texture2D tex, int startX, int startY) {
         for (int i = 0; i < numExposed; i++) {
-            tex.SetPixel(startX + i, startY + 0, Color.magenta / ACTIVATION_MAGNITUDE_CAP * externalInputs[i]);
-            tex.SetPixel(startX + i, startY + 1, Color.cyan / ACTIVATION_MAGNITUDE_CAP * externalOutputs[i]);
+            tex.SetPixel(startX + i, startY + 0, Color.magenta / ACTIVATION_TIMER * externalInputs[i]);
+            tex.SetPixel(startX + i, startY + 1, Color.cyan / ACTIVATION_TIMER * externalOutputs[i]);
         }
         for (int i = numExposed; i < numNeurons; i++) {
-            Color cStart = Color.green / ACTIVATION_MAGNITUDE_CAP;
-            if (activations[i] > ACTIVATION_MAGNITUDE_THRESH) {
-                cStart = Color.white / ACTIVATION_MAGNITUDE_CAP;
+            Color cStart = Color.green / ACTIVATION_TIMER;
+            if (activations[i] > 0) {
+                cStart = Color.white / ACTIVATION_TIMER;
             }
             tex.SetPixel(startX + i, startY + 0, cStart * activations[i]);
             tex.SetPixel(startX + i, startY + 1, cStart * activations[i]);// double up for visibility
@@ -237,6 +229,9 @@ public class NeuronCluster {
             result.Add(activations[i]);
         }
         for (int i = 0; i < numNeurons; i++) {
+            result.Add(cooldowns[i]);
+        }
+        for (int i = 0; i < numNeurons; i++) {
             for (int j = 0; j < numNeurons; j++) {
                 result.Add(connections[i][j]);
             }
@@ -257,8 +252,12 @@ public class NeuronCluster {
             result.externalOutputs[i] = list.Current;
             list.MoveNext();
         }
-        for (int i = 0; i < numExposed; i++) {
+        for (int i = 0; i < numNeurons; i++) {
             result.activations[i] = list.Current;
+            list.MoveNext();
+        }
+        for (int i = 0; i < numNeurons; i++) {
+            result.cooldowns[i] = list.Current;
             list.MoveNext();
         }
         for (int i = 0; i < numNeurons; i++) {
